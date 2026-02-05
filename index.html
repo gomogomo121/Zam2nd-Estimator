@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EZmates | Counter & Linear Take-Off</title>
-    <link rel="icon" type="image/png" href="favicon2.png">
+    <title>EZmates | Counter, Linear & Area Take-Off</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -62,11 +61,10 @@
 </head>
 <body class="bg-gray-100 h-screen flex flex-col text-slate-800 font-sans overflow-hidden">
 
-    <!-- Header -->
     <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-ruler-combined text-indigo-600 text-xl"></i>
-            <h1 class="font-bold text-lg tracking-tight text-gray-800">EZ<span class="text-indigo-600">mates</span><span class="text-indigo-200"> :  by Howard</span></h1>
+            <h1 class="font-bold text-lg tracking-tight text-gray-800">EZ<span class="text-indigo-600">mates</span><span class="text-indigo-200"> : by Howard</span></h1>
         </div>
         <div class="flex items-center gap-3">
             <input type="file" id="file-upload" accept="application/pdf" class="hidden">
@@ -80,7 +78,6 @@
     </header>
 
     <div class="flex-1 flex overflow-hidden">
-        <!-- Sidebar -->
         <aside class="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0 z-10 shadow-lg">
             <div class="p-4 border-b bg-gray-50/50">
                  <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Project Units</h2>
@@ -115,6 +112,9 @@
                         <button onclick="app.addLayer('New Line', 'line')" class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-100 font-bold flex items-center gap-1">
                             <i class="fa-solid fa-slash"></i> +Line
                         </button>
+                        <button onclick="app.addLayer('New Area', 'area')" class="text-[10px] bg-pink-50 text-pink-600 px-2 py-1 rounded hover:bg-pink-100 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-draw-polygon"></i> +Area
+                        </button>
                         <button onclick="app.addLayer('New Count', 'count')" class="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded hover:bg-emerald-100 font-bold flex items-center gap-1">
                             <i class="fa-solid fa-location-dot"></i> +Count
                         </button>
@@ -129,6 +129,10 @@
                     <span class="text-gray-500">Total Linear:</span>
                     <span id="total-length" class="font-mono font-bold text-indigo-600">0.00 ft</span>
                 </div>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-500">Total Area:</span>
+                    <span id="total-area" class="font-mono font-bold text-pink-600">0.00 sq ft</span>
+                </div>
                 <div class="flex justify-between text-sm">
                     <span class="text-gray-500">Total Counts:</span>
                     <span id="total-counts" class="font-mono font-bold text-emerald-600">0</span>
@@ -136,7 +140,6 @@
             </div>
         </aside>
 
-        <!-- Canvas -->
         <main class="flex-1 relative bg-gray-200 flex flex-col overflow-hidden">
             <div id="tool-overlay" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-1.5 rounded-full text-sm font-medium z-30 pointer-events-none hidden">
                 Tool: <span id="tool-name">Select</span>
@@ -156,7 +159,6 @@
         </main>
     </div>
 
-    <!-- Scale Input Modal -->
     <div id="scale-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg p-6 w-80 shadow-2xl">
             <h3 class="text-lg font-bold mb-2">Calibration</h3>
@@ -172,7 +174,6 @@
         </div>
     </div>
 
-    <!-- Report Setup Modal -->
     <div id="report-setup-modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center">
         <div class="bg-white rounded-lg p-6 w-[400px] shadow-2xl relative">
             <button onclick="document.getElementById('report-setup-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
@@ -197,10 +198,8 @@
         </div>
     </div>
 
-    <!-- Report Modal -->
     <div id="report-modal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-center justify-center overflow-auto py-6">
         <div class="report-container bg-white rounded p-12 w-[210mm] min-h-[200mm] shadow-2xl relative">
-            <!-- Close Button (X) -->
             <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="no-print absolute top-6 right-6 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center transition-all">
                 <i class="fa-solid fa-xmark text-xl"></i>
             </button>
@@ -283,6 +282,7 @@
                 emptyState: document.getElementById('empty-state'),
                 toolOverlay: document.getElementById('tool-overlay'),
                 totalLength: document.getElementById('total-length'),
+                totalArea: document.getElementById('total-area'),
                 totalCounts: document.getElementById('total-counts'),
                 modalUnit: document.getElementById('scale-modal-unit')
             },
@@ -394,7 +394,7 @@
                     const layer = this.layers.find(l => l.id === this.activeLayerId);
                     if (!layer) return;
 
-                    if (layer.type === 'line') {
+                    if (layer.type === 'line' || layer.type === 'area') {
                         if (!this.isDrawing) {
                             this.isDrawing = true;
                             this.currentPoints = [pos];
@@ -437,7 +437,6 @@
                     } else if(this.tool !== 'select') {
                         this.setTool('select');
                     }
-                    // Also close modals on ESC
                     document.getElementById('report-setup-modal').classList.add('hidden');
                     document.getElementById('report-modal').classList.add('hidden');
                 }
@@ -482,7 +481,7 @@
 
             addLayer(name = 'Layer', type = 'line', color = null) {
                 const id = Date.now().toString();
-                const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'];
+                const colors = ['#4f46e5', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
                 const selectedColor = color || colors[this.layers.length % colors.length];
                 
                 this.layers.push({ id, name, type, color: selectedColor, visible: true, data: [] });
@@ -526,6 +525,17 @@
                 };
             },
 
+            calculateArea(points) {
+                if (points.length < 3) return 0;
+                let area = 0;
+                for (let i = 0; i < points.length; i++) {
+                    let j = (i + 1) % points.length;
+                    area += points[i].x * points[j].y;
+                    area -= points[j].x * points[i].y;
+                }
+                return Math.abs(area) / 2;
+            },
+
             finishPolyline() {
                 const layer = this.layers.find(l => l.id === this.activeLayerId);
                 if (layer && this.currentPoints.length > 1) {
@@ -548,12 +558,21 @@
                     ctx.fillStyle = layer.color;
                     ctx.lineWidth = strokeSize;
                     
-                    if (layer.type === 'line') {
+                    if (layer.type === 'line' || layer.type === 'area') {
                         layer.data.forEach(poly => {
                             ctx.beginPath();
                             ctx.moveTo(poly[0].x, poly[0].y);
                             poly.forEach(p => ctx.lineTo(p.x, p.y));
+                            
+                            if (layer.type === 'area') {
+                                ctx.closePath();
+                                ctx.save();
+                                ctx.globalAlpha = 0.3;
+                                ctx.fill();
+                                ctx.restore();
+                            }
                             ctx.stroke();
+                            
                             poly.forEach(p => {
                                 ctx.beginPath();
                                 ctx.arc(p.x, p.y, nodeSize, 0, Math.PI*2);
@@ -573,12 +592,17 @@
                 });
 
                 if (this.isDrawing) {
+                    const active = this.layers.find(l => l.id === this.activeLayerId);
                     ctx.strokeStyle = '#f43f5e';
                     ctx.lineWidth = strokeSize;
                     ctx.beginPath();
                     ctx.moveTo(this.currentPoints[0].x, this.currentPoints[0].y);
                     this.currentPoints.forEach(p => ctx.lineTo(p.x, p.y));
                     ctx.lineTo(this.mouseWorld.x, this.mouseWorld.y);
+                    
+                    if (active && active.type === 'area') {
+                        ctx.lineTo(this.currentPoints[0].x, this.currentPoints[0].y);
+                    }
                     ctx.stroke();
                 }
 
@@ -592,27 +616,18 @@
                     ctx.moveTo(this.mouseWorld.x, this.mouseWorld.y - s);
                     ctx.lineTo(this.mouseWorld.x, this.mouseWorld.y + s);
                     ctx.stroke();
-                    
-                    if(this.calibrationPoints.length === 1) {
-                         ctx.strokeStyle = '#f97316';
-                         ctx.setLineDash([5/this.zoom, 5/this.zoom]);
-                         ctx.beginPath();
-                         ctx.moveTo(this.calibrationPoints[0].x, this.calibrationPoints[0].y);
-                         ctx.lineTo(this.mouseWorld.x, this.mouseWorld.y);
-                         ctx.stroke();
-                         ctx.setLineDash([]);
-                    }
                 }
                 requestAnimationFrame(this.renderLoop.bind(this));
             },
 
             renderUI() {
                 this.els.layerList.innerHTML = '';
-                let totalLen = 0;
-                let totalCnt = 0;
+                let totalLen = 0, totalCnt = 0, totalArea = 0;
                 
                 this.layers.forEach(l => {
                     let qty = 0;
+                    let displayUnit = this.unit;
+
                     if (l.type === 'line') {
                         const pixels = l.data.reduce((acc, poly) => {
                             let pLen = 0;
@@ -623,6 +638,11 @@
                         }, 0);
                         qty = this.pixelsPerUnit ? (pixels / this.pixelsPerUnit) : 0;
                         totalLen += qty;
+                    } else if (l.type === 'area') {
+                        const sqPixels = l.data.reduce((acc, poly) => acc + this.calculateArea(poly), 0);
+                        qty = this.pixelsPerUnit ? (sqPixels / Math.pow(this.pixelsPerUnit, 2)) : 0;
+                        totalArea += qty;
+                        displayUnit = `sq ${this.unit}`;
                     } else {
                         qty = l.data.length;
                         totalCnt += qty;
@@ -638,89 +658,78 @@
                                 <div class="w-3 h-3 rounded-full shrink-0" style="background:${l.color}"></div>
                                 <input type="text" class="layer-name-input" value="${l.name}" 
                                     onchange="app.renameLayer('${l.id}', this.value)" 
-                                    onclick="event.stopPropagation()"
-                                >
+                                    onclick="event.stopPropagation()">
                             </div>
-                            <div class="flex gap-2">
-                                <button onclick="event.stopPropagation(); app.toggleVis('${l.id}')" class="text-gray-400 hover:text-gray-600">
-                                    <i class="fa-solid ${l.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
-                                </button>
-                                <button onclick="event.stopPropagation(); app.deleteLayer('${l.id}')" class="text-gray-400 hover:text-red-500">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </div>
+                            <button onclick="event.stopPropagation(); app.deleteLayer('${l.id}')" class="text-gray-300 hover:text-red-500 transition-colors">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
                         </div>
-                        <div class="flex justify-between items-center mt-1">
-                            <span class="text-[10px] uppercase font-bold text-gray-400 tracking-tighter">
-                                ${l.type === 'line' ? '<i class="fa-solid fa-ruler"></i> Linear' : '<i class="fa-solid fa-location-dot"></i> Count'}
+                        <div class="flex justify-between items-baseline px-5">
+                            <span class="text-[10px] text-gray-400 font-bold uppercase">${l.type}</span>
+                            <span class="font-mono font-bold text-sm text-gray-700">
+                                ${l.type === 'count' ? qty : qty.toFixed(2)} 
+                                <span class="text-[10px] text-gray-400 font-normal">${l.type === 'count' ? 'pts' : displayUnit}</span>
                             </span>
-                            <div class="text-xs font-mono font-bold text-gray-600">
-                                ${l.type === 'line' ? qty.toFixed(2) + ' ' + this.unit : qty + ' pts'}
-                            </div>
                         </div>
                     `;
                     this.els.layerList.appendChild(div);
                 });
-                
+
                 this.els.totalLength.innerText = `${totalLen.toFixed(2)} ${this.unit}`;
+                this.els.totalArea.innerText = `${totalArea.toFixed(2)} sq ${this.unit}`;
                 this.els.totalCounts.innerText = totalCnt;
             },
 
             deleteLayer(id) {
+                if(this.layers.length <= 1) return;
                 this.layers = this.layers.filter(l => l.id !== id);
-                if (this.activeLayerId === id) {
-                    this.activeLayerId = this.layers[0]?.id || null;
-                    if(!this.activeLayerId) this.setTool('select');
-                }
-                this.renderUI();
-            },
-
-            toggleVis(id) {
-                const l = this.layers.find(x => x.id === id);
-                if(l) l.visible = !l.visible;
+                if(this.activeLayerId === id) this.activeLayerId = this.layers[0].id;
                 this.renderUI();
             },
 
             showReportSetup() {
-                if (this.layers.length === 0) return;
                 document.getElementById('report-setup-modal').classList.remove('hidden');
             },
 
             exportReport() {
-                const projectTitle = document.getElementById('report-project-title').value || "Untitled Project";
-                const estimatorName = document.getElementById('report-estimator-name').value || "Unknown Estimator";
+                const title = document.getElementById('report-project-title').value || 'Unnamed Project';
+                const estimator = document.getElementById('report-estimator-name').value || 'N/A';
                 
-                document.getElementById('display-project-title').innerText = projectTitle;
-                document.getElementById('display-estimator-name').innerText = estimatorName;
+                document.getElementById('display-project-title').innerText = title;
+                document.getElementById('display-estimator-name').innerText = estimator;
                 document.getElementById('display-report-date').innerText = new Date().toLocaleDateString();
-
+                
                 const rows = document.getElementById('report-rows');
                 rows.innerHTML = '';
                 
                 this.layers.forEach(l => {
-                    let qtyDisplay = '';
+                    let qty = 0;
+                    let displayUnit = this.unit;
                     if (l.type === 'line') {
                         const pixels = l.data.reduce((acc, poly) => {
                             let pLen = 0;
-                            for(let i=1; i<poly.length; i++) {
-                                pLen += Math.sqrt(Math.pow(poly[i].x-poly[i-1].x,2) + Math.pow(poly[i].y-poly[i-1].y,2));
-                            }
+                            for(let i=1; i<poly.length; i++) pLen += Math.sqrt(Math.pow(poly[i].x-poly[i-1].x,2) + Math.pow(poly[i].y-poly[i-1].y,2));
                             return acc + pLen;
                         }, 0);
-                        const qty = this.pixelsPerUnit ? (pixels / this.pixelsPerUnit) : 0;
-                        qtyDisplay = `${qty.toFixed(2)} ${this.unit}`;
+                        qty = this.pixelsPerUnit ? (pixels / this.pixelsPerUnit).toFixed(2) : "0.00";
+                    } else if (l.type === 'area') {
+                        const sqPixels = l.data.reduce((acc, poly) => acc + this.calculateArea(poly), 0);
+                        qty = this.pixelsPerUnit ? (sqPixels / Math.pow(this.pixelsPerUnit, 2)).toFixed(2) : "0.00";
+                        displayUnit = `sq ${this.unit}`;
                     } else {
-                        qtyDisplay = `${l.data.length} units`;
+                        qty = l.data.length;
+                        displayUnit = "points";
                     }
 
                     rows.innerHTML += `
-                        <tr class="border-b border-gray-100 last:border-0">
-                            <td class="py-4 px-2 font-semibold text-gray-800">${l.name}</td>
-                            <td class="py-4 px-2 text-sm text-gray-500 capitalize">${l.type}</td>
-                            <td class="py-4 px-2 text-right font-mono font-bold text-indigo-700">${qtyDisplay}</td>
-                        </tr>`;
+                        <tr class="border-b border-gray-100 text-sm">
+                            <td class="py-4 px-2 font-bold">${l.name}</td>
+                            <td class="py-4 px-2 text-gray-500 italic uppercase text-xs">${l.type}</td>
+                            <td class="py-4 px-2 text-right font-mono font-bold">${qty} ${displayUnit}</td>
+                        </tr>
+                    `;
                 });
-
+                
                 document.getElementById('report-setup-modal').classList.add('hidden');
                 document.getElementById('report-modal').classList.remove('hidden');
             }
@@ -729,5 +738,4 @@
         app.init();
     </script>
 </body>
-
 </html>
