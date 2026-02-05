@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EZmates | Counter & Linear Take-Off</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+
+    <style>
+        .canvas-container {
+            position: relative;
+            background-color: #333;
+            overflow: hidden; 
+            cursor: crosshair;
+        }
+        .grabbing { cursor: grabbing !important; }
+        .grab { cursor: grab !important; }
+        #canvas-stack {
+            position: absolute;
+            transform-origin: 0 0;
+            top: 0;
+            left: 0;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        #pdf-render { z-index: 1; }
+        #draw-layer { z-index: 2; pointer-events: none; }
+        
+        .layer-name-input {
+            background: transparent;
+            border: none;
+            font-weight: bold;
+            font-size: 0.875rem;
+            color: #374151;
+            width: 100%;
+            outline: none;
+        }
+        .layer-name-input:focus {
+            background: white;
+            box-shadow: 0 0 0 1px #6366f1;
+            border-radius: 2px;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; }
+            #report-modal { position: absolute; top: 0; left: 0; width: 100%; height: auto; display: block !important; background: white; padding: 0 !important; }
+            .report-container { box-shadow: none !important; margin: 0 !important; width: 100% !important; border: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex flex-col text-slate-800 font-sans overflow-hidden">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
+        <div class="flex items-center gap-2">
+            <i class="fa-solid fa-ruler-combined text-indigo-600 text-xl"></i>
+            <h1 class="font-bold text-lg tracking-tight text-gray-800">EZ<span class="text-indigo-600">mates</span><span class="text-indigo-200"> :  by Howard</span></h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <input type="file" id="file-upload" accept="application/pdf" class="hidden">
+            <button onclick="document.getElementById('file-upload').click()" class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors border border-gray-300">
+                <i class="fa-solid fa-file-pdf text-red-500"></i> Import PDF
+            </button>
+            <button onclick="app.showReportSetup()" class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm transition-colors">
+                <i class="fa-solid fa-print"></i> Export Report
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-80 bg-white border-r border-gray-200 flex flex-col shrink-0 z-10 shadow-lg">
+            <div class="p-4 border-b bg-gray-50/50">
+                 <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Project Units</h2>
+                 <select id="unit-selector" onchange="app.setUnit(this.value)" class="w-full text-sm border-gray-300 rounded border px-2 py-1.5 bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                     <option value="ft">Feet (ft)</option>
+                     <option value="in">Inches (in)</option>
+                     <option value="m">Meters (m)</option>
+                     <option value="mm">Millimeters (mm)</option>
+                 </select>
+            </div>
+
+            <div class="p-4 border-b">
+                <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Tools</h2>
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="btn-calibrate" onclick="app.setTool('calibrate')" class="py-2 px-1 bg-orange-50 text-orange-700 border border-orange-200 rounded text-xs font-medium hover:bg-orange-100 transition flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-compass-drafting"></i> Calibrate
+                    </button>
+                    <button onclick="app.undo()" class="py-2 px-1 bg-gray-50 text-gray-700 border border-gray-200 rounded text-xs font-medium hover:bg-gray-100 transition flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-rotate-left"></i> Undo
+                    </button>
+                </div>
+                <div class="text-xs text-gray-500 flex justify-between bg-gray-50 p-2 rounded border mt-2">
+                    <span>Scale:</span>
+                    <span id="scale-display" class="font-mono font-bold text-gray-800 text-right">Not Set</span>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col overflow-hidden">
+                <div class="p-4 pb-2 flex items-center justify-between">
+                    <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Layers</h2>
+                    <div class="flex gap-1">
+                        <button onclick="app.addLayer('New Line', 'line')" class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded hover:bg-indigo-100 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-slash"></i> +Line
+                        </button>
+                        <button onclick="app.addLayer('New Count', 'count')" class="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-1 rounded hover:bg-emerald-100 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-location-dot"></i> +Count
+                        </button>
+                    </div>
+                </div>
+                <div id="layer-list" class="flex-1 overflow-y-auto px-4 py-2 space-y-2"></div>
+            </div>
+
+            <div class="p-4 border-t bg-white shadow-inner">
+                <h3 class="text-sm font-bold text-gray-800 mb-2">Project Totals</h3>
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-500">Total Linear:</span>
+                    <span id="total-length" class="font-mono font-bold text-indigo-600">0.00 ft</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-gray-500">Total Counts:</span>
+                    <span id="total-counts" class="font-mono font-bold text-emerald-600">0</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Canvas -->
+        <main class="flex-1 relative bg-gray-200 flex flex-col overflow-hidden">
+            <div id="tool-overlay" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-1.5 rounded-full text-sm font-medium z-30 pointer-events-none hidden">
+                Tool: <span id="tool-name">Select</span>
+            </div>
+
+            <div id="canvas-wrapper" class="canvas-container w-full h-full">
+                <div id="canvas-stack">
+                    <canvas id="pdf-render"></canvas>
+                    <canvas id="draw-layer"></canvas>
+                </div>
+                
+                <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 pointer-events-none bg-gray-100">
+                    <i class="fa-solid fa-file-import text-6xl mb-4 text-gray-300"></i>
+                    <p class="text-lg font-medium">Please upload a PDF drawing to start</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scale Input Modal -->
+    <div id="scale-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-80 shadow-2xl">
+            <h3 class="text-lg font-bold mb-2">Calibration</h3>
+            <p class="text-sm text-gray-600 mb-4">Enter the physical length of the segment:</p>
+            <div class="flex mb-4">
+                <input type="number" id="scale-input-val" class="flex-1 border border-gray-300 rounded-l px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0.00">
+                <span id="scale-modal-unit" class="bg-gray-100 border border-l-0 border-gray-300 px-3 py-2 rounded-r text-gray-600 font-bold">ft</span>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="app.cancelScale()" class="px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 rounded">Cancel</button>
+                <button onclick="app.confirmScale()" class="px-4 py-2 text-sm bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold">Set Scale</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Setup Modal -->
+    <div id="report-setup-modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-[400px] shadow-2xl relative">
+            <button onclick="document.getElementById('report-setup-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h3 class="text-xl font-bold mb-4">Report Details</h3>
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-tight">Project Title</label>
+                    <input type="text" id="report-project-title" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="e.g. 123 Main St Renovation">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-tight">Estimator Name</label>
+                    <input type="text" id="report-estimator-name" class="w-full border border-gray-300 rounded px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 text-sm" placeholder="Your Name">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="app.exportReport()" class="w-full py-2.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-export"></i> Generate Preview
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div id="report-modal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-center justify-center overflow-auto py-6">
+        <div class="report-container bg-white rounded p-12 w-[210mm] min-h-[200mm] shadow-2xl relative">
+            <!-- Close Button (X) -->
+            <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="no-print absolute top-6 right-6 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center transition-all">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            
+            <div class="flex justify-between items-start border-b-2 border-indigo-600 pb-4 mb-6">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Basic Takeoff</h1>
+                    <p class="text-indigo-600 font-semibold text-lg" id="display-project-title"></p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-widest">Date Generated</p>
+                    <p class="text-sm font-medium" id="display-report-date"></p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-8 mb-8 bg-gray-50 p-4 rounded-lg">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Estimator</p>
+                    <p class="text-base font-semibold text-gray-800" id="display-estimator-name"></p>
+                </div>
+                <div class="text-right border-l pl-8 border-gray-200">
+                    <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">System</p>
+                    <p class="text-base font-semibold text-gray-800">EZmates_v1.0</p>
+                </div>
+            </div>
+
+            <table class="w-full text-left mb-8">
+                <thead>
+                    <tr class="border-b-2 border-gray-200 text-gray-500 uppercase text-xs font-bold">
+                        <th class="py-4 px-2">Layer Name</th>
+                        <th class="py-4 px-2">Measurement Type</th>
+                        <th class="py-4 px-2 text-right">Final Quantity</th>
+                    </tr>
+                </thead>
+                <tbody id="report-rows"></tbody>
+            </table>
+
+            <div class="mt-auto pt-10 border-t border-dashed border-gray-200 text-[10px] text-gray-400 text-center uppercase tracking-widest">
+                🚧This app is still a work in progress. Outputs are generally reliable, but small errors can happen—please review results before use.
+            </div>
+
+            <div class="flex justify-center mt-12 no-print">
+                <button onclick="window.print()" class="bg-indigo-600 text-white px-8 py-3 rounded shadow-lg hover:bg-indigo-700 flex items-center gap-3 font-bold transition-transform hover:scale-105">
+                    <i class="fa-solid fa-print"></i> Print Report / Save PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const app = {
+            pdfDoc: null,
+            renderScale: 2.0, 
+            
+            pan: { x: 0, y: 0 },
+            zoom: 1,
+            isPanning: false,
+            startPan: { x: 0, y: 0 },
+            
+            pixelsPerUnit: null,
+            unit: 'ft',
+            calibrationPoints: [],
+
+            layers: [],
+            activeLayerId: null,
+            
+            tool: 'select', 
+            isDrawing: false,
+            currentPoints: [],
+            mouseWorld: { x: 0, y: 0 },
+            isSpaceHeld: false,
+            
+            els: {
+                pdfCanvas: document.getElementById('pdf-render'),
+                drawCanvas: document.getElementById('draw-layer'),
+                stack: document.getElementById('canvas-stack'),
+                wrapper: document.getElementById('canvas-wrapper'),
+                layerList: document.getElementById('layer-list'),
+                scaleDisplay: document.getElementById('scale-display'),
+                emptyState: document.getElementById('empty-state'),
+                toolOverlay: document.getElementById('tool-overlay'),
+                totalLength: document.getElementById('total-length'),
+                totalCounts: document.getElementById('total-counts'),
+                modalUnit: document.getElementById('scale-modal-unit')
+            },
+
+            init() {
+                document.getElementById('file-upload').addEventListener('change', this.handleFileUpload.bind(this));
+                this.els.wrapper.addEventListener('mousedown', this.onMouseDown.bind(this));
+                window.addEventListener('mousemove', this.onMouseMove.bind(this));
+                window.addEventListener('mouseup', this.onMouseUp.bind(this));
+                this.els.wrapper.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
+                this.els.wrapper.addEventListener('contextmenu', (e) => { 
+                    e.preventDefault(); 
+                    if(this.isDrawing) this.finishPolyline();
+                });
+
+                window.addEventListener('keydown', this.onKeyDown.bind(this));
+                window.addEventListener('keyup', this.onKeyUp.bind(this));
+                
+                this.addLayer('Base Walls', 'line', '#4f46e5');
+                requestAnimationFrame(this.renderLoop.bind(this));
+            },
+
+            async handleFileUpload(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const fileReader = new FileReader();
+                fileReader.onload = async function() {
+                    const typedarray = new Uint8Array(this.result);
+                    app.pdfDoc = await pdfjsLib.getDocument(typedarray).promise;
+                    app.renderPage(1);
+                    app.els.emptyState.style.display = 'none';
+                    app.els.toolOverlay.classList.remove('hidden');
+                };
+                fileReader.readAsArrayBuffer(file);
+            },
+
+            async renderPage(num) {
+                const page = await this.pdfDoc.getPage(num);
+                const viewport = page.getViewport({ scale: this.renderScale });
+
+                this.els.pdfCanvas.height = viewport.height;
+                this.els.pdfCanvas.width = viewport.width;
+                this.els.drawCanvas.height = viewport.height;
+                this.els.drawCanvas.width = viewport.width;
+                this.els.stack.style.width = viewport.width + 'px';
+                this.els.stack.style.height = viewport.height + 'px';
+
+                const wrapW = this.els.wrapper.clientWidth;
+                const wrapH = this.els.wrapper.clientHeight;
+                this.zoom = Math.min(wrapW / viewport.width, wrapH / viewport.height) * 0.95;
+                this.pan.x = (wrapW - viewport.width * this.zoom) / 2;
+                this.pan.y = (wrapH - viewport.height * this.zoom) / 2;
+                
+                this.updateTransform();
+
+                const ctx = this.els.pdfCanvas.getContext('2d');
+                await page.render({ canvasContext: ctx, viewport }).promise;
+            },
+
+            updateTransform() {
+                this.els.stack.style.transform = `translate(${this.pan.x}px, ${this.pan.y}px) scale(${this.zoom})`;
+            },
+
+            onWheel(e) {
+                if (!this.pdfDoc) return;
+                e.preventDefault();
+                const rect = this.els.wrapper.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const delta = e.deltaY < 0 ? 1.1 : 0.9;
+                const newZoom = this.zoom * delta;
+                if (newZoom < 0.05 || newZoom > 20) return;
+
+                this.pan.x = mouseX - (mouseX - this.pan.x) * (newZoom / this.zoom);
+                this.pan.y = mouseY - (mouseY - this.pan.y) * (newZoom / this.zoom);
+                this.zoom = newZoom;
+                this.updateTransform();
+            },
+
+            screenToWorld(clientX, clientY) {
+                const rect = this.els.wrapper.getBoundingClientRect();
+                const relX = clientX - rect.left;
+                const relY = clientY - rect.top;
+                return {
+                    x: (relX - this.pan.x) / this.zoom,
+                    y: (relY - this.pan.y) / this.zoom
+                };
+            },
+
+            onMouseDown(e) {
+                if (e.button === 1 || (this.isSpaceHeld && e.button === 0)) {
+                    this.isPanning = true;
+                    this.startPan = { x: e.clientX, y: e.clientY };
+                    this.els.wrapper.classList.add('grabbing');
+                    return;
+                }
+                if (!this.pdfDoc || e.button !== 0) return;
+                
+                const pos = this.screenToWorld(e.clientX, e.clientY);
+                if (this.tool === 'calibrate') {
+                    this.calibrationPoints.push(pos);
+                    if (this.calibrationPoints.length === 2) {
+                        this.els.modalUnit.innerText = this.unit;
+                        document.getElementById('scale-modal').classList.remove('hidden');
+                        document.getElementById('scale-input-val').focus();
+                    }
+                } else if (this.tool === 'draw') {
+                    const layer = this.layers.find(l => l.id === this.activeLayerId);
+                    if (!layer) return;
+
+                    if (layer.type === 'line') {
+                        if (!this.isDrawing) {
+                            this.isDrawing = true;
+                            this.currentPoints = [pos];
+                        } else {
+                            const last = this.currentPoints[this.currentPoints.length - 1];
+                            this.currentPoints.push(this.snapPoint(pos, last));
+                        }
+                    } else if (layer.type === 'count') {
+                        layer.data.push(pos);
+                        this.renderUI();
+                    }
+                }
+            },
+
+            onMouseMove(e) {
+                if (this.isPanning) {
+                    this.pan.x += e.clientX - this.startPan.x;
+                    this.pan.y += e.clientY - this.startPan.y;
+                    this.startPan = { x: e.clientX, y: e.clientY };
+                    this.updateTransform();
+                    return;
+                }
+                this.mouseWorld = this.screenToWorld(e.clientX, e.clientY);
+            },
+
+            onMouseUp() {
+                this.isPanning = false;
+                this.els.wrapper.classList.remove('grabbing');
+            },
+
+            onKeyDown(e) {
+                if (e.code === 'Space') {
+                    this.isSpaceHeld = true;
+                    this.els.wrapper.classList.add('grab');
+                }
+                if (e.key === 'Escape') {
+                    if(this.isDrawing) {
+                        this.isDrawing = false;
+                        this.currentPoints = [];
+                    } else if(this.tool !== 'select') {
+                        this.setTool('select');
+                    }
+                    // Also close modals on ESC
+                    document.getElementById('report-setup-modal').classList.add('hidden');
+                    document.getElementById('report-modal').classList.add('hidden');
+                }
+                if (e.ctrlKey && e.key === 'z') {
+                    e.preventDefault();
+                    this.undo();
+                }
+            },
+            
+            onKeyUp(e) {
+                if (e.code === 'Space') {
+                    this.isSpaceHeld = false;
+                    this.els.wrapper.classList.remove('grab');
+                }
+            },
+
+            undo() {
+                const layer = this.layers.find(l => l.id === this.activeLayerId);
+                if (!layer || layer.data.length === 0) return;
+                layer.data.pop();
+                this.renderUI();
+            },
+
+            setUnit(val) {
+                const oldUnit = this.unit;
+                this.unit = val;
+                const factors = { ft: 1, in: 12, m: 0.3048, mm: 304.8 };
+                if (this.pixelsPerUnit) {
+                    const oldToRef = factors[oldUnit];
+                    const newToRef = factors[val];
+                    this.pixelsPerUnit = this.pixelsPerUnit * (oldToRef / newToRef);
+                    this.els.scaleDisplay.innerText = `1 ${this.unit} = ${this.pixelsPerUnit.toFixed(1)} px`;
+                }
+                this.renderUI();
+            },
+
+            setTool(tool) {
+                this.tool = tool;
+                this.calibrationPoints = [];
+                document.getElementById('tool-name').innerText = tool.charAt(0).toUpperCase() + tool.slice(1);
+            },
+
+            addLayer(name = 'Layer', type = 'line', color = null) {
+                const id = Date.now().toString();
+                const colors = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6'];
+                const selectedColor = color || colors[this.layers.length % colors.length];
+                
+                this.layers.push({ id, name, type, color: selectedColor, visible: true, data: [] });
+                this.activeLayerId = id;
+                this.setTool('draw');
+                this.renderUI();
+            },
+
+            renameLayer(id, newName) {
+                const layer = this.layers.find(l => l.id === id);
+                if(layer) layer.name = newName;
+            },
+
+            confirmScale() {
+                const val = parseFloat(document.getElementById('scale-input-val').value);
+                if (!val || val <= 0) return;
+                const p1 = this.calibrationPoints[0], p2 = this.calibrationPoints[1];
+                const pixels = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+                this.pixelsPerUnit = pixels / val;
+                this.els.scaleDisplay.innerText = `1 ${this.unit} = ${this.pixelsPerUnit.toFixed(1)} px`;
+                document.getElementById('scale-modal').classList.add('hidden');
+                document.getElementById('scale-input-val').value = '';
+                this.setTool('draw');
+                this.renderUI();
+            },
+
+            cancelScale() {
+                document.getElementById('scale-modal').classList.add('hidden');
+                this.calibrationPoints = [];
+                this.setTool('select');
+            },
+
+            snapPoint(curr, last) {
+                const dx = curr.x - last.x, dy = curr.y - last.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const angle = Math.atan2(dy, dx);
+                const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+                return {
+                    x: last.x + Math.cos(snappedAngle) * dist,
+                    y: last.y + Math.sin(snappedAngle) * dist
+                };
+            },
+
+            finishPolyline() {
+                const layer = this.layers.find(l => l.id === this.activeLayerId);
+                if (layer && this.currentPoints.length > 1) {
+                    layer.data.push([...this.currentPoints]);
+                }
+                this.isDrawing = false;
+                this.currentPoints = [];
+                this.renderUI();
+            },
+
+            renderLoop() {
+                const ctx = this.els.drawCanvas.getContext('2d');
+                ctx.clearRect(0, 0, this.els.drawCanvas.width, this.els.drawCanvas.height);
+                const strokeSize = 3 / this.zoom;
+                const nodeSize = 4 / this.zoom;
+
+                this.layers.forEach(layer => {
+                    if (!layer.visible) return;
+                    ctx.strokeStyle = layer.color;
+                    ctx.fillStyle = layer.color;
+                    ctx.lineWidth = strokeSize;
+                    
+                    if (layer.type === 'line') {
+                        layer.data.forEach(poly => {
+                            ctx.beginPath();
+                            ctx.moveTo(poly[0].x, poly[0].y);
+                            poly.forEach(p => ctx.lineTo(p.x, p.y));
+                            ctx.stroke();
+                            poly.forEach(p => {
+                                ctx.beginPath();
+                                ctx.arc(p.x, p.y, nodeSize, 0, Math.PI*2);
+                                ctx.fill();
+                            });
+                        });
+                    } else if (layer.type === 'count') {
+                        layer.data.forEach(p => {
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, nodeSize * 1.5, 0, Math.PI*2);
+                            ctx.fill();
+                            ctx.strokeStyle = 'white';
+                            ctx.lineWidth = 1/this.zoom;
+                            ctx.stroke();
+                        });
+                    }
+                });
+
+                if (this.isDrawing) {
+                    ctx.strokeStyle = '#f43f5e';
+                    ctx.lineWidth = strokeSize;
+                    ctx.beginPath();
+                    ctx.moveTo(this.currentPoints[0].x, this.currentPoints[0].y);
+                    this.currentPoints.forEach(p => ctx.lineTo(p.x, p.y));
+                    ctx.lineTo(this.mouseWorld.x, this.mouseWorld.y);
+                    ctx.stroke();
+                }
+
+                if (this.tool !== 'select' && this.pdfDoc) {
+                    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+                    ctx.lineWidth = 1 / this.zoom;
+                    const s = 20 / this.zoom;
+                    ctx.beginPath();
+                    ctx.moveTo(this.mouseWorld.x - s, this.mouseWorld.y);
+                    ctx.lineTo(this.mouseWorld.x + s, this.mouseWorld.y);
+                    ctx.moveTo(this.mouseWorld.x, this.mouseWorld.y - s);
+                    ctx.lineTo(this.mouseWorld.x, this.mouseWorld.y + s);
+                    ctx.stroke();
+                    
+                    if(this.calibrationPoints.length === 1) {
+                         ctx.strokeStyle = '#f97316';
+                         ctx.setLineDash([5/this.zoom, 5/this.zoom]);
+                         ctx.beginPath();
+                         ctx.moveTo(this.calibrationPoints[0].x, this.calibrationPoints[0].y);
+                         ctx.lineTo(this.mouseWorld.x, this.mouseWorld.y);
+                         ctx.stroke();
+                         ctx.setLineDash([]);
+                    }
+                }
+                requestAnimationFrame(this.renderLoop.bind(this));
+            },
+
+            renderUI() {
+                this.els.layerList.innerHTML = '';
+                let totalLen = 0;
+                let totalCnt = 0;
+                
+                this.layers.forEach(l => {
+                    let qty = 0;
+                    if (l.type === 'line') {
+                        const pixels = l.data.reduce((acc, poly) => {
+                            let pLen = 0;
+                            for(let i=1; i<poly.length; i++) {
+                                pLen += Math.sqrt(Math.pow(poly[i].x-poly[i-1].x,2) + Math.pow(poly[i].y-poly[i-1].y,2));
+                            }
+                            return acc + pLen;
+                        }, 0);
+                        qty = this.pixelsPerUnit ? (pixels / this.pixelsPerUnit) : 0;
+                        totalLen += qty;
+                    } else {
+                        qty = l.data.length;
+                        totalCnt += qty;
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = `p-3 rounded border mb-2 cursor-pointer transition ${this.activeLayerId === l.id ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200' : 'bg-white hover:bg-gray-50'}`;
+                    div.onclick = () => { this.activeLayerId = l.id; this.setTool('draw'); this.renderUI(); };
+                    
+                    div.innerHTML = `
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2 flex-1">
+                                <div class="w-3 h-3 rounded-full shrink-0" style="background:${l.color}"></div>
+                                <input type="text" class="layer-name-input" value="${l.name}" 
+                                    onchange="app.renameLayer('${l.id}', this.value)" 
+                                    onclick="event.stopPropagation()"
+                                >
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="event.stopPropagation(); app.toggleVis('${l.id}')" class="text-gray-400 hover:text-gray-600">
+                                    <i class="fa-solid ${l.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                                </button>
+                                <button onclick="event.stopPropagation(); app.deleteLayer('${l.id}')" class="text-gray-400 hover:text-red-500">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <span class="text-[10px] uppercase font-bold text-gray-400 tracking-tighter">
+                                ${l.type === 'line' ? '<i class="fa-solid fa-ruler"></i> Linear' : '<i class="fa-solid fa-location-dot"></i> Count'}
+                            </span>
+                            <div class="text-xs font-mono font-bold text-gray-600">
+                                ${l.type === 'line' ? qty.toFixed(2) + ' ' + this.unit : qty + ' pts'}
+                            </div>
+                        </div>
+                    `;
+                    this.els.layerList.appendChild(div);
+                });
+                
+                this.els.totalLength.innerText = `${totalLen.toFixed(2)} ${this.unit}`;
+                this.els.totalCounts.innerText = totalCnt;
+            },
+
+            deleteLayer(id) {
+                this.layers = this.layers.filter(l => l.id !== id);
+                if (this.activeLayerId === id) {
+                    this.activeLayerId = this.layers[0]?.id || null;
+                    if(!this.activeLayerId) this.setTool('select');
+                }
+                this.renderUI();
+            },
+
+            toggleVis(id) {
+                const l = this.layers.find(x => x.id === id);
+                if(l) l.visible = !l.visible;
+                this.renderUI();
+            },
+
+            showReportSetup() {
+                if (this.layers.length === 0) return;
+                document.getElementById('report-setup-modal').classList.remove('hidden');
+            },
+
+            exportReport() {
+                const projectTitle = document.getElementById('report-project-title').value || "Untitled Project";
+                const estimatorName = document.getElementById('report-estimator-name').value || "Unknown Estimator";
+                
+                document.getElementById('display-project-title').innerText = projectTitle;
+                document.getElementById('display-estimator-name').innerText = estimatorName;
+                document.getElementById('display-report-date').innerText = new Date().toLocaleDateString();
+
+                const rows = document.getElementById('report-rows');
+                rows.innerHTML = '';
+                
+                this.layers.forEach(l => {
+                    let qtyDisplay = '';
+                    if (l.type === 'line') {
+                        const pixels = l.data.reduce((acc, poly) => {
+                            let pLen = 0;
+                            for(let i=1; i<poly.length; i++) {
+                                pLen += Math.sqrt(Math.pow(poly[i].x-poly[i-1].x,2) + Math.pow(poly[i].y-poly[i-1].y,2));
+                            }
+                            return acc + pLen;
+                        }, 0);
+                        const qty = this.pixelsPerUnit ? (pixels / this.pixelsPerUnit) : 0;
+                        qtyDisplay = `${qty.toFixed(2)} ${this.unit}`;
+                    } else {
+                        qtyDisplay = `${l.data.length} units`;
+                    }
+
+                    rows.innerHTML += `
+                        <tr class="border-b border-gray-100 last:border-0">
+                            <td class="py-4 px-2 font-semibold text-gray-800">${l.name}</td>
+                            <td class="py-4 px-2 text-sm text-gray-500 capitalize">${l.type}</td>
+                            <td class="py-4 px-2 text-right font-mono font-bold text-indigo-700">${qtyDisplay}</td>
+                        </tr>`;
+                });
+
+                document.getElementById('report-setup-modal').classList.add('hidden');
+                document.getElementById('report-modal').classList.remove('hidden');
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+</html>
