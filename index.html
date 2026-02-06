@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EZmates | Counter, Linear & Area Take-Off</title>
+    <title>EZmates by Howard v2.0</title>
     <link rel="icon" type="image/png" href="favicon2.png">
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -52,6 +52,11 @@
             border-radius: 2px;
         }
 
+        /* Custom scrollbar for layer list */
+        #layer-list::-webkit-scrollbar { width: 6px; }
+        #layer-list::-webkit-scrollbar-track { background: transparent; }
+        #layer-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
         @media print {
             .no-print { display: none !important; }
             body { background: white; }
@@ -65,7 +70,7 @@
     <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 shrink-0 z-20 shadow-sm">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-ruler-combined text-indigo-600 text-xl"></i>
-            <h1 class="font-bold text-lg tracking-tight text-gray-800">EZ<span class="text-indigo-600">mates</span><span class="text-indigo-200"> : by Howard</span></h1>
+            <h1 class="font-bold text-lg tracking-tight text-gray-800">EZ<span class="text-indigo-600">mates</span><span class="text-indigo-200"> by Howard v2.0</span></h1>
         </div>
         <div class="flex items-center gap-3">
             <input type="file" id="file-upload" accept="application/pdf" class="hidden">
@@ -121,29 +126,20 @@
                         </button>
                     </div>
                 </div>
-                <div id="layer-list" class="flex-1 overflow-y-auto px-4 py-2 space-y-2"></div>
+                <div id="layer-list" class="flex-1 overflow-y-auto px-4 py-2 space-y-3 pb-6"></div>
             </div>
 
-            <div class="p-4 border-t bg-white shadow-inner">
-                <h3 class="text-sm font-bold text-gray-800 mb-2">Project Totals</h3>
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="text-gray-500">Total Linear:</span>
-                    <span id="total-length" class="font-mono font-bold text-indigo-600">0.00 ft</span>
-                </div>
-                <div class="flex justify-between text-sm mb-1">
-                    <span class="text-gray-500">Total Area:</span>
-                    <span id="total-area" class="font-mono font-bold text-pink-600">0.00 sq ft</span>
-                </div>
-                <div class="flex justify-between text-sm">
-                    <span class="text-gray-500">Total Counts:</span>
-                    <span id="total-counts" class="font-mono font-bold text-emerald-600">0</span>
-                </div>
-            </div>
+            <!-- Removed Project Totals Section -->
         </aside>
 
         <main class="flex-1 relative bg-gray-200 flex flex-col overflow-hidden">
             <div id="tool-overlay" class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-1.5 rounded-full text-sm font-medium z-30 pointer-events-none hidden">
                 Tool: <span id="tool-name">Select</span>
+            </div>
+
+            <!-- Toast Notification -->
+            <div id="toast" class="absolute bottom-10 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-md shadow-lg z-50 text-sm font-bold hidden transition-opacity opacity-0">
+                <i class="fa-solid fa-circle-exclamation mr-2"></i> <span id="toast-msg">Error</span>
             </div>
 
             <div id="canvas-wrapper" class="canvas-container w-full h-full">
@@ -160,6 +156,7 @@
         </main>
     </div>
 
+    <!-- Scale Modal -->
     <div id="scale-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center">
         <div class="bg-white rounded-lg p-6 w-80 shadow-2xl">
             <h3 class="text-lg font-bold mb-2">Calibration</h3>
@@ -175,6 +172,7 @@
         </div>
     </div>
 
+    <!-- Report Setup Modal -->
     <div id="report-setup-modal" class="hidden fixed inset-0 bg-black/60 z-[60] flex items-center justify-center">
         <div class="bg-white rounded-lg p-6 w-[400px] shadow-2xl relative">
             <button onclick="document.getElementById('report-setup-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
@@ -199,6 +197,7 @@
         </div>
     </div>
 
+    <!-- Full Report Modal -->
     <div id="report-modal" class="hidden fixed inset-0 bg-black/50 z-[100] flex items-center justify-center overflow-auto py-6">
         <div class="report-container bg-white rounded p-12 w-[210mm] min-h-[200mm] shadow-2xl relative">
             <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="no-print absolute top-6 right-6 text-gray-400 hover:text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-full w-10 h-10 flex items-center justify-center transition-all">
@@ -207,7 +206,7 @@
             
             <div class="flex justify-between items-start border-b-2 border-indigo-600 pb-4 mb-6">
                 <div>
-                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Basic Takeoff</h1>
+                    <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Takeoff Report</h1>
                     <p class="text-indigo-600 font-semibold text-lg" id="display-project-title"></p>
                 </div>
                 <div class="text-right">
@@ -223,23 +222,24 @@
                 </div>
                 <div class="text-right border-l pl-8 border-gray-200">
                     <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">System</p>
-                    <p class="text-base font-semibold text-gray-800">EZmates_v1.0</p>
+                    <p class="text-base font-semibold text-gray-800">EZmates_v2.0</p>
                 </div>
             </div>
 
-            <table class="w-full text-left mb-8">
+            <table class="w-full text-left mb-8 text-sm">
                 <thead>
                     <tr class="border-b-2 border-gray-200 text-gray-500 uppercase text-xs font-bold">
-                        <th class="py-4 px-2">Layer Name</th>
-                        <th class="py-4 px-2">Measurement Type</th>
-                        <th class="py-4 px-2 text-right">Final Quantity</th>
+                        <th class="py-3 px-2">Layer Name</th>
+                        <th class="py-3 px-2">Details</th>
+                        <th class="py-3 px-2 text-right">Deductions</th>
+                        <th class="py-3 px-2 text-right">Net Quantity</th>
                     </tr>
                 </thead>
                 <tbody id="report-rows"></tbody>
             </table>
 
             <div class="mt-auto pt-10 border-t border-dashed border-gray-200 text-[10px] text-gray-400 text-center uppercase tracking-widest">
-                🚧This app is still a work in progress. Outputs are generally reliable, but small errors can happen—please review results before use.
+                🚧 Generated by EZmates v2. Calculated quantities include opening deductions where applicable.
             </div>
 
             <div class="flex justify-center mt-12 no-print">
@@ -282,10 +282,9 @@
                 scaleDisplay: document.getElementById('scale-display'),
                 emptyState: document.getElementById('empty-state'),
                 toolOverlay: document.getElementById('tool-overlay'),
-                totalLength: document.getElementById('total-length'),
-                totalArea: document.getElementById('total-area'),
-                totalCounts: document.getElementById('total-counts'),
-                modalUnit: document.getElementById('scale-modal-unit')
+                modalUnit: document.getElementById('scale-modal-unit'),
+                toast: document.getElementById('toast'),
+                toastMsg: document.getElementById('toast-msg')
             },
 
             init() {
@@ -374,6 +373,55 @@
                 };
             },
 
+            showToast(msg) {
+                this.els.toastMsg.innerText = msg;
+                this.els.toast.classList.remove('hidden');
+                // Force reflow
+                void this.els.toast.offsetWidth; 
+                this.els.toast.style.opacity = '1';
+                setTimeout(() => {
+                    this.els.toast.style.opacity = '0';
+                    setTimeout(() => this.els.toast.classList.add('hidden'), 300);
+                }, 3000);
+            },
+
+            // Math Helper: Point to Line Segment Distance
+            pDistance(x, y, x1, y1, x2, y2) {
+                var A = x - x1;
+                var B = y - y1;
+                var C = x2 - x1;
+                var D = y2 - y1;
+                var dot = A * C + B * D;
+                var len_sq = C * C + D * D;
+                var param = -1;
+                if (len_sq != 0) param = dot / len_sq;
+
+                var xx, yy;
+                if (param < 0) { xx = x1; yy = y1; }
+                else if (param > 1) { xx = x2; yy = y2; }
+                else { xx = x1 + param * C; yy = y1 + param * D; }
+
+                var dx = x - xx;
+                var dy = y - yy;
+                return Math.sqrt(dx * dx + dy * dy);
+            },
+
+            // Find a wall (line layer with height > 0) near the mouse point
+            findHostWall(pos) {
+                const threshold = 15 / this.zoom; // hit tolerance
+                for (let l of this.layers) {
+                    if (l.type === 'line' && l.visible && (parseFloat(l.wallHeight) > 0)) {
+                        for (let poly of l.data) {
+                            for (let i = 0; i < poly.length - 1; i++) {
+                                const dist = this.pDistance(pos.x, pos.y, poly[i].x, poly[i].y, poly[i+1].x, poly[i+1].y);
+                                if (dist < threshold) return l.id;
+                            }
+                        }
+                    }
+                }
+                return null;
+            },
+
             onMouseDown(e) {
                 if (e.button === 1 || (this.isSpaceHeld && e.button === 0)) {
                     this.isPanning = true;
@@ -384,6 +432,7 @@
                 if (!this.pdfDoc || e.button !== 0) return;
                 
                 const pos = this.screenToWorld(e.clientX, e.clientY);
+                
                 if (this.tool === 'calibrate') {
                     this.calibrationPoints.push(pos);
                     if (this.calibrationPoints.length === 2) {
@@ -404,7 +453,22 @@
                             this.currentPoints.push(this.snapPoint(pos, last));
                         }
                     } else if (layer.type === 'count') {
-                        layer.data.push(pos);
+                        // NEW LOGIC: Check dimensions and host wall
+                        const w = parseFloat(layer.openingWidth);
+                        const h = parseFloat(layer.openingHeight);
+                        const hasDims = w > 0 && h > 0;
+                        let hostId = null;
+
+                        if (hasDims) {
+                            hostId = this.findHostWall(pos);
+                            if (!hostId) {
+                                this.showToast("This opening must be placed on a Wall (Line with Height)");
+                                return; // Block placement
+                            }
+                        }
+
+                        // Store point with host link if applicable
+                        layer.data.push({ ...pos, hostLayerId: hostId });
                         this.renderUI();
                     }
                 }
@@ -485,10 +549,24 @@
                 const colors = ['#4f46e5', '#ec4899', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
                 const selectedColor = color || colors[this.layers.length % colors.length];
                 
-                this.layers.push({ id, name, type, color: selectedColor, visible: true, data: [] });
+                // Initialize with new properties for V2
+                this.layers.push({ 
+                    id, name, type, color: selectedColor, visible: true, data: [],
+                    wallHeight: 0, // For Line layers
+                    openingWidth: 0, // For Count layers
+                    openingHeight: 0 // For Count layers
+                });
                 this.activeLayerId = id;
                 this.setTool('draw');
                 this.renderUI();
+            },
+
+            updateLayerParam(id, param, value) {
+                const layer = this.layers.find(l => l.id === id);
+                if (layer) {
+                    layer[param] = value;
+                    this.renderUI();
+                }
             },
 
             renameLayer(id, newName) {
@@ -519,7 +597,7 @@
                 const dx = curr.x - last.x, dy = curr.y - last.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 const angle = Math.atan2(dy, dx);
-                const snappedAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+                const snappedAngle = Math.round(angle / (Math.PI / 36)) * (Math.PI / 36);
                 return {
                     x: last.x + Math.cos(snappedAngle) * dist,
                     y: last.y + Math.sin(snappedAngle) * dist
@@ -581,9 +659,17 @@
                             });
                         });
                     } else if (layer.type === 'count') {
+                        const isOpening = layer.openingWidth > 0 && layer.openingHeight > 0;
                         layer.data.forEach(p => {
                             ctx.beginPath();
-                            ctx.arc(p.x, p.y, nodeSize * 1.5, 0, Math.PI*2);
+                            if (isOpening) {
+                                // Draw square for openings
+                                const size = nodeSize * 2.5;
+                                ctx.rect(p.x - size/2, p.y - size/2, size, size);
+                            } else {
+                                // Circle for normal counts
+                                ctx.arc(p.x, p.y, nodeSize * 1.5, 0, Math.PI*2);
+                            }
                             ctx.fill();
                             ctx.strokeStyle = 'white';
                             ctx.lineWidth = 1/this.zoom;
@@ -621,123 +707,238 @@
                 requestAnimationFrame(this.renderLoop.bind(this));
             },
 
+            // Updated for V2 Stats
             renderUI() {
-                this.els.layerList.innerHTML = '';
-                let totalLen = 0, totalCnt = 0, totalArea = 0;
-                
-                this.layers.forEach(l => {
-                    let qty = 0;
-                    let displayUnit = this.unit;
-
-                    if (l.type === 'line') {
-                        const pixels = l.data.reduce((acc, poly) => {
-                            let pLen = 0;
-                            for(let i=1; i<poly.length; i++) {
-                                pLen += Math.sqrt(Math.pow(poly[i].x-poly[i-1].x,2) + Math.pow(poly[i].y-poly[i-1].y,2));
-                            }
-                            return acc + pLen;
-                        }, 0);
-                        qty = this.pixelsPerUnit ? (pixels / this.pixelsPerUnit) : 0;
-                        totalLen += qty;
-                    } else if (l.type === 'area') {
-                        const sqPixels = l.data.reduce((acc, poly) => acc + this.calculateArea(poly), 0);
-                        qty = this.pixelsPerUnit ? (sqPixels / Math.pow(this.pixelsPerUnit, 2)) : 0;
-                        totalArea += qty;
-                        displayUnit = `sq ${this.unit}`;
-                    } else {
-                        qty = l.data.length;
-                        totalCnt += qty;
-                    }
-
-                    const div = document.createElement('div');
-                    div.className = `p-3 rounded border mb-2 cursor-pointer transition ${this.activeLayerId === l.id ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200' : 'bg-white hover:bg-gray-50'}`;
-                    div.onclick = () => { this.activeLayerId = l.id; this.setTool('draw'); this.renderUI(); };
+                this.els.layerList.innerHTML = this.layers.map(layer => {
+                    const isActive = layer.id === this.activeLayerId;
                     
-                    div.innerHTML = `
-                        <div class="flex items-center justify-between mb-1">
-                            <div class="flex items-center gap-2 flex-1">
-                                <div class="w-3 h-3 rounded-full shrink-0" style="background:${l.color}"></div>
-                                <input type="text" class="layer-name-input" value="${l.name}" 
-                                    onchange="app.renameLayer('${l.id}', this.value)" 
-                                    onclick="event.stopPropagation()">
-                            </div>
-                            <button onclick="event.stopPropagation(); app.deleteLayer('${l.id}')" class="text-gray-300 hover:text-red-500 transition-colors">
-                                <i class="fa-solid fa-trash-can text-xs"></i>
-                            </button>
-                        </div>
-                        <div class="flex justify-between items-baseline px-5">
-                            <span class="text-[10px] text-gray-400 font-bold uppercase">${l.type}</span>
-                            <span class="font-mono font-bold text-sm text-gray-700">
-                                ${l.type === 'count' ? qty : qty.toFixed(2)} 
-                                <span class="text-[10px] text-gray-400 font-normal">${l.type === 'count' ? 'pts' : displayUnit}</span>
+                    // Input HTML for Line Height
+                    const heightInput = layer.type === 'line' ? `
+                        <div class="mt-2 flex items-center gap-2 text-[11px] bg-gray-50 p-1 rounded" onclick="event.stopPropagation()">
+                            <span class="text-gray-500 font-semibold w-8">Hgt:</span>
+                            <input type="number" class="w-16 border rounded px-1 py-0.5 text-right outline-none focus:border-indigo-500"
+                                value="${layer.wallHeight || ''}" 
+                                onchange="app.updateLayerParam('${layer.id}', 'wallHeight', this.value)"
+                                placeholder="0" step="0.1">
+                            <span class="text-gray-400">${this.unit}</span>
+                            <span class="ml-auto text-xs text-indigo-600 font-bold" title="Wall Area">
+                                ${parseFloat(layer.wallHeight) > 0 ? '<i class="fa-solid fa-cube"></i>' : ''}
                             </span>
                         </div>
-                    `;
-                    this.els.layerList.appendChild(div);
-                });
+                    ` : '';
 
-                this.els.totalLength.innerText = `${totalLen.toFixed(2)} ${this.unit}`;
-                this.els.totalArea.innerText = `${totalArea.toFixed(2)} sq ${this.unit}`;
-                this.els.totalCounts.innerText = totalCnt;
+                    // Input HTML for Opening Dimensions
+                    const dimInput = layer.type === 'count' ? `
+                        <div class="mt-2 flex items-center gap-1 text-[11px] bg-gray-50 p-1 rounded" onclick="event.stopPropagation()">
+                            <span class="text-gray-500 font-semibold">Opn:</span>
+                            <input type="number" class="w-12 border rounded px-1 py-0.5 text-right outline-none focus:border-indigo-500"
+                                value="${layer.openingWidth || ''}" 
+                                onchange="app.updateLayerParam('${layer.id}', 'openingWidth', this.value)"
+                                placeholder="W" step="0.1">
+                            <span class="text-gray-400">x</span>
+                            <input type="number" class="w-12 border rounded px-1 py-0.5 text-right outline-none focus:border-indigo-500"
+                                value="${layer.openingHeight || ''}" 
+                                onchange="app.updateLayerParam('${layer.id}', 'openingHeight', this.value)"
+                                placeholder="H" step="0.1">
+                            <span class="text-gray-400">${this.unit}</span>
+                        </div>
+                    ` : '';
+
+                    // Calculate Display Value per Layer (With Gross/Net Logic)
+                    let displayValue = '-';
+                    if (this.pixelsPerUnit) {
+                        if (layer.type === 'line') {
+                            let totalPixels = 0;
+                            layer.data.forEach(poly => {
+                                for(let i=0; i<poly.length-1; i++) {
+                                    const dx = poly[i+1].x - poly[i].x;
+                                    const dy = poly[i+1].y - poly[i].y;
+                                    totalPixels += Math.sqrt(dx*dx + dy*dy);
+                                }
+                            });
+                            const len = totalPixels / this.pixelsPerUnit;
+                            const h = parseFloat(layer.wallHeight) || 0;
+                            
+                            if (h > 0) {
+                                // Gross Area
+                                const gross = len * h;
+                                // Calculate Deductions for this specific layer
+                                let deductions = 0;
+                                this.layers.forEach(cl => {
+                                    if (cl.type === 'count' && parseFloat(cl.openingWidth) > 0) {
+                                        // Count items on this wall
+                                        const countOnThisWall = cl.data.filter(p => p.hostLayerId === layer.id).length;
+                                        deductions += countOnThisWall * (parseFloat(cl.openingWidth) * parseFloat(cl.openingHeight));
+                                    }
+                                });
+                                const net = Math.max(0, gross - deductions);
+                                displayValue = `
+                                    <div class="text-right flex flex-col items-end leading-tight">
+                                        <span class="font-bold text-indigo-700">${net.toFixed(1)} sq ${this.unit}</span>
+                                        <span class="text-[9px] text-gray-400">Gross: ${gross.toFixed(1)} sq ${this.unit}</span>
+                                    </div>
+                                `;
+                            } else {
+                                displayValue = `<span class="font-mono font-bold text-gray-700">${len.toFixed(2)} ${this.unit}</span>`;
+                            }
+                        } else if (layer.type === 'area') {
+                             let totalSqPixels = 0;
+                             layer.data.forEach(poly => totalSqPixels += this.calculateArea(poly));
+                             const area = totalSqPixels / (this.pixelsPerUnit * this.pixelsPerUnit);
+                             displayValue = `<span class="font-mono font-bold text-gray-700">${area.toFixed(2)} sq ${this.unit}</span>`;
+                        } else {
+                            displayValue = `<span class="font-mono font-bold text-gray-700">${layer.data.length}</span>`;
+                        }
+                    }
+
+                    return `
+                    <div class="p-3 rounded border transition-all ${isActive ? 'bg-indigo-50 border-indigo-300 ring-1 ring-indigo-300' : 'bg-white border-gray-200 hover:border-indigo-200'}" onclick="app.setActiveLayer('${layer.id}')">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-3 h-3 rounded-full shrink-0" style="background:${layer.color}"></div>
+                            <input type="text" value="${layer.name}" onchange="app.renameLayer('${layer.id}', this.value)" onclick="event.stopPropagation()" class="layer-name-input">
+                            <button onclick="event.stopPropagation(); app.toggleVis('${layer.id}')" class="text-gray-400 hover:text-gray-600">
+                                <i class="fa-solid ${layer.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); app.deleteLayer('${layer.id}')" class="text-gray-400 hover:text-red-500 text-xs">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="flex justify-between items-start text-xs text-gray-500 pl-5 mt-1">
+                            <span class="pt-1">${layer.data.length} items</span>
+                            ${displayValue}
+                        </div>
+                        ${heightInput}
+                        ${dimInput}
+                    </div>
+                `}).join('');
             },
 
-            deleteLayer(id) {
-                if(this.layers.length <= 1) return;
-                this.layers = this.layers.filter(l => l.id !== id);
-                if(this.activeLayerId === id) this.activeLayerId = this.layers[0].id;
+            setActiveLayer(id) {
+                this.activeLayerId = id;
+                this.setTool('draw');
                 this.renderUI();
             },
 
+            toggleVis(id) {
+                const l = this.layers.find(x => x.id === id);
+                if(l) { l.visible = !l.visible; this.renderUI(); }
+            },
+
+            deleteLayer(id) {
+                if(confirm('Delete layer?')) {
+                    this.layers = this.layers.filter(l => l.id !== id);
+                    if(this.activeLayerId === id) this.activeLayerId = this.layers[0]?.id;
+                    this.renderUI();
+                }
+            },
+
             showReportSetup() {
+                if(!this.pixelsPerUnit) { alert('Please calibrate scale first'); return; }
                 document.getElementById('report-setup-modal').classList.remove('hidden');
             },
 
             exportReport() {
-                const title = document.getElementById('report-project-title').value || 'Unnamed Project';
-                const estimator = document.getElementById('report-estimator-name').value || 'N/A';
-                
-                document.getElementById('display-project-title').innerText = title;
-                document.getElementById('display-estimator-name').innerText = estimator;
-                document.getElementById('display-report-date').innerText = new Date().toLocaleDateString();
-                
-                const rows = document.getElementById('report-rows');
-                rows.innerHTML = '';
-                
-                this.layers.forEach(l => {
-                    let qty = 0;
-                    let displayUnit = this.unit;
-                    if (l.type === 'line') {
-                        const pixels = l.data.reduce((acc, poly) => {
-                            let pLen = 0;
-                            for(let i=1; i<poly.length; i++) pLen += Math.sqrt(Math.pow(poly[i].x-poly[i-1].x,2) + Math.pow(poly[i].y-poly[i-1].y,2));
-                            return acc + pLen;
-                        }, 0);
-                        qty = this.pixelsPerUnit ? (pixels / this.pixelsPerUnit).toFixed(2) : "0.00";
-                    } else if (l.type === 'area') {
-                        const sqPixels = l.data.reduce((acc, poly) => acc + this.calculateArea(poly), 0);
-                        qty = this.pixelsPerUnit ? (sqPixels / Math.pow(this.pixelsPerUnit, 2)).toFixed(2) : "0.00";
-                        displayUnit = `sq ${this.unit}`;
-                    } else {
-                        qty = l.data.length;
-                        displayUnit = "points";
-                    }
-
-                    rows.innerHTML += `
-                        <tr class="border-b border-gray-100 text-sm">
-                            <td class="py-4 px-2 font-bold">${l.name}</td>
-                            <td class="py-4 px-2 text-gray-500 italic uppercase text-xs">${l.type}</td>
-                            <td class="py-4 px-2 text-right font-mono font-bold">${qty} ${displayUnit}</td>
-                        </tr>
-                    `;
-                });
-                
                 document.getElementById('report-setup-modal').classList.add('hidden');
                 document.getElementById('report-modal').classList.remove('hidden');
+                
+                document.getElementById('display-project-title').innerText = document.getElementById('report-project-title').value || 'Untitled Project';
+                document.getElementById('display-estimator-name').innerText = document.getElementById('report-estimator-name').value || 'Unknown';
+                document.getElementById('display-report-date').innerText = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
+
+                const rows = document.getElementById('report-rows');
+                rows.innerHTML = '';
+
+                this.layers.forEach(l => {
+                    if (l.data.length === 0) return;
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                    
+                    let typeDesc = l.type.toUpperCase();
+                    let qty = '';
+                    let details = '';
+                    let deductionText = '-';
+
+                    if (l.type === 'line') {
+                        let totalPixels = 0;
+                        l.data.forEach(poly => {
+                            for(let i=0; i<poly.length-1; i++) {
+                                totalPixels += Math.sqrt(Math.pow(poly[i+1].x-poly[i].x, 2) + Math.pow(poly[i+1].y-poly[i].y, 2));
+                            }
+                        });
+                        const len = totalPixels / this.pixelsPerUnit;
+                        const h = parseFloat(l.wallHeight) || 0;
+
+                        if (h > 0) {
+                            // Wall Area Logic with Deductions
+                            typeDesc = 'WALL AREA';
+                            const grossArea = len * h;
+                            
+                            // Calculate deductions
+                            let totalDeductionArea = 0;
+                            let deductionDetails = [];
+
+                            // Find all openings linked to this layer
+                            this.layers.forEach(cl => {
+                                if (cl.type === 'count' && parseFloat(cl.openingWidth) > 0) {
+                                    const linkedCount = cl.data.filter(p => p.hostLayerId === l.id).length;
+                                    if (linkedCount > 0) {
+                                        const openArea = parseFloat(cl.openingWidth) * parseFloat(cl.openingHeight);
+                                        const subTotal = linkedCount * openArea;
+                                        totalDeductionArea += subTotal;
+                                        deductionDetails.push(`${linkedCount}x [${cl.name}]`);
+                                    }
+                                }
+                            });
+
+                            const netArea = Math.max(0, grossArea - totalDeductionArea);
+                            
+                            details = `L: ${len.toFixed(1)} x H: ${h.toFixed(1)} ${this.unit} <br> <span class="text-xs text-gray-400">Gross: ${grossArea.toFixed(1)}</span>`;
+                            deductionText = totalDeductionArea > 0 
+                                ? `<span class="text-red-500">-${totalDeductionArea.toFixed(1)} sq ${this.unit}</span><div class="text-[10px] text-gray-400">${deductionDetails.join(', ')}</div>` 
+                                : '-';
+                            qty = `<strong>${netArea.toFixed(2)}</strong> sq ${this.unit}`;
+
+                        } else {
+                            typeDesc = 'LINEAR';
+                            details = 'Height: N/A';
+                            qty = len.toFixed(2) + ' ' + this.unit;
+                        }
+
+                    } else if (l.type === 'area') {
+                        let totalSqPixels = 0;
+                        l.data.forEach(poly => totalSqPixels += this.calculateArea(poly));
+                        const area = totalSqPixels / (this.pixelsPerUnit * this.pixelsPerUnit);
+                        details = 'Polygon Area';
+                        qty = area.toFixed(2) + ' sq ' + this.unit;
+                    } else if (l.type === 'count') {
+                        const w = parseFloat(l.openingWidth);
+                        const h = parseFloat(l.openingHeight);
+                        if (w > 0 && h > 0) {
+                            typeDesc = 'OPENING';
+                            details = `Dims: ${w} x ${h} ${this.unit}`;
+                        } else {
+                            details = 'Standard Count';
+                        }
+                        qty = l.data.length;
+                    }
+
+                    tr.innerHTML = `
+                        <td class="py-3 px-2 font-medium text-gray-800">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full" style="background:${l.color}"></div>
+                                ${l.name}
+                            </div>
+                        </td>
+                        <td class="py-3 px-2 text-gray-600 text-xs">${details}</td>
+                        <td class="py-3 px-2 text-right text-xs">${deductionText}</td>
+                        <td class="py-3 px-2 text-right font-mono font-bold text-indigo-700">${qty}</td>
+                    `;
+                    rows.appendChild(tr);
+                });
             }
         };
 
-        app.init();
+        window.onload = () => app.init();
     </script>
 </body>
 </html>
-
