@@ -597,7 +597,7 @@
                 const dx = curr.x - last.x, dy = curr.y - last.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
                 const angle = Math.atan2(dy, dx);
-                const snappedAngle = Math.round(angle / (Math.PI / 72)) * (Math.PI / 36);
+                const snappedAngle = Math.round(angle / (Math.PI / 72)) * (Math.PI / 72);
                 return {
                     x: last.x + Math.cos(snappedAngle) * dist,
                     y: last.y + Math.sin(snappedAngle) * dist
@@ -942,4 +942,5 @@
     </script>
 </body>
 </html>
+
 
